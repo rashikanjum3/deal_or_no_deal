@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe or Not Safe</title>
+  
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #e0c3fc, #8ec5fc);
+    color: #2a003f;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+  }
+
+  form {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+    max-width: 400px;
+    width: 100%;
+  }
+
+  input[type="text"],
+  button {
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+
+  input[type="text"] {
+    margin-bottom: 1rem;
+    background-color: #f3d1ff;
+    color: #2a003f;
+    outline: none;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+    transition: background 0.3s ease;
+  }
+
+  input[type="text"]:focus {
+    background-color: #efb5ff;
+  }
+
+  input::placeholder {
+    color: #5c2a77;
+  }
+
+  button {
+    background: linear-gradient(45deg, #ff9eb5, #b86eff);
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.3s ease, background 0.3s ease;
+  }
+
+  button:hover:not(:disabled) {
+    transform: scale(1.05);
+    background: linear-gradient(45deg, #ffaac5, #a05cff);
+  }
+
+  button:disabled {
+    background: #bbb;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  canvas {
+    display: none;
+  }
+
+  @media (max-width: 500px) {
+    form {
+      padding: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
+    input[type="text"],
+    button {
+      font-size: 0.95rem;
+      padding: 10px 14px;
+    }
+  }
+</style>
+
+
+</head>
+<body>
+    <h1>Enter Your Name</h1>
+    <form id="nameForm">
+        <input type="text" id="nameInput" placeholder="Your Name" required>
+        <button type="submit" id="submitBtn">Submit</button>
+    </form>
+    
+    <canvas id="imageCanvas" style="display: none;"></canvas>
+    
+    <script>
+        const form = document.getElementById('nameForm');
+        const nameInput = document.getElementById('nameInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const safeImageUrl = 'https://i.imgur.com/C3SWbPh.png';
+        const notSafeImageUrl = 'https://i.imgur.com/LlkcWmC.png';
+        const cooldownMillis = 24 * 60 * 60 * 1000;
+        const cooldownKey = 'lastDownloadTime';
+
+        function updateCooldownStatus() {
+            const lastDownloadTime = localStorage.getItem(cooldownKey);
+            const currentTime = Date.now();
+
+            if (lastDownloadTime && currentTime - lastDownloadTime < cooldownMillis) {
+                const remaining = cooldownMillis - (currentTime - lastDownloadTime);
+                disableButtonWithCountdown(remaining);
+            }
+        }
+
+        function disableButtonWithCountdown(ms) {
+            submitBtn.disabled = true;
+
+            const interval = setInterval(() => {
+                const secondsLeft = Math.max(0, Math.floor(ms / 1000));
+                const hrs = String(Math.floor(secondsLeft / 3600)).padStart(2, '0');
+                const mins = String(Math.floor((secondsLeft % 3600) / 60)).padStart(2, '0');
+                const secs = String(secondsLeft % 60).padStart(2, '0');
+                submitBtn.textContent = `Try again in ${hrs}:${mins}:${secs}`;
+
+                if (ms <= 0) {
+                    clearInterval(interval);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit';
+                }
+
+                ms -= 1000;
+            }, 1000);
+        }
+
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const userName = nameInput.value.trim();
+            if (!userName) return;
+
+            const currentTime = Date.now();
+            localStorage.setItem(cooldownKey, currentTime.toString());
+
+            const timestamp = new Date().toLocaleString();
+            const imageUrl = Math.random() < 0.5 ? safeImageUrl : notSafeImageUrl;
+
+            const image = new Image();
+            image.crossOrigin = 'anonymous';
+            image.src = imageUrl;
+
+            image.onload = function() {
+                canvas.width = image.width;
+                canvas.height = image.height;
+                ctx.drawImage(image, 0, 0);
+
+                // Black text with white shadow for visibility
+                ctx.font = 'bold 20px Arial';
+                ctx.fillStyle = 'black';
+                ctx.shadowColor = 'white';
+                ctx.shadowBlur = 3;
+                ctx.fillText(`${userName} - ${timestamp}`, 10, 30);
+
+                const editedUrl = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.href = editedUrl;
+                link.download = 'edited_image.png';
+                link.click();
+
+                disableButtonWithCountdown(cooldownMillis);
+            };
+
+            image.onerror = function() {
+                alert('Failed to load image. CORS may be blocking it.');
+            };
+        });
+
+        updateCooldownStatus();
+    </script>
+</body>
+</html>
